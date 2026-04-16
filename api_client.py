@@ -33,9 +33,6 @@ class GraphQLClient:
             execute_timeout=timeout,
         )
 
-        print(f"Using API endpoint: {self.endpoint}")
-        print(f"Using API key: {self.api_key}")
-
     async def get_query(
         self,
         query: str,
@@ -49,6 +46,19 @@ class GraphQLClient:
         async with self.client as session:
             return await session.execute(
                 query_document, variable_values=query_variables
+            )
+
+    async def execute_mutation(
+        self,
+        mutation: str,
+        variables: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        mutation_document = gql(mutation)
+        mutation_variables: Dict[str, Any] = dict(variables or {})
+
+        async with self.client as session:
+            return await session.execute(
+                mutation_document, variable_values=mutation_variables
             )
 
     async def list_query(

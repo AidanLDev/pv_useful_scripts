@@ -1,5 +1,3 @@
-# To get started run pip install -r ./requirements.txt from the root
-
 import asyncio
 import importlib.util
 import sys
@@ -23,7 +21,9 @@ if queries_spec is None or queries_spec.loader is None:
 
 queries_module = importlib.util.module_from_spec(queries_spec)
 queries_spec.loader.exec_module(queries_module)
-SCORES_BY_LOCATION_ID_QUERY = queries_module.SCORES_BY_LOCATION_ID_QUERY
+CUSTOMER_DATA_BY_LOCATION_ID_AND_DATE_TIME_QUERY = (
+    queries_module.CUSTOMER_DATA_BY_LOCATION_ID_AND_DATE_TIME_QUERY
+)
 
 mutations_module_path = PROJECT_ROOT / "graphql" / "mutations.py"
 mutations_spec = importlib.util.spec_from_file_location(
@@ -34,43 +34,53 @@ if mutations_spec is None or mutations_spec.loader is None:
 
 mutations_module = importlib.util.module_from_spec(mutations_spec)
 mutations_spec.loader.exec_module(mutations_module)
-CREATE_SCORE_MUTATION = mutations_module.CREATE_SCORE_MUTATION
+CREATE_CUSTOMER_DATA_MUTATION = mutations_module.CREATE_CUSTOMER_DATA_MUTATION
+
+
+def build_customer_data_input(row: dict) -> dict:
+    mutation_input = {
+        "locationID": report_test_two_location_id,
+        "dateTime": row.get("dateTime"),
+        "siteID": row.get("siteID"),
+        "measureName": row.get("measureName"),
+        "tag": row.get("tag"),
+        "measureDataType": row.get("measureDataType"),
+        "measureUnit": row.get("measureUnit"),
+        "measureValueString": row.get("measureValueString"),
+        "measureValueNumber": row.get("measureValueNumber"),
+        "measureValueBoolean": row.get("measureValueBoolean"),
+        "customerDataUserId": row.get("customerDataUserId"),
+    }
+
+    return {key: value for key, value in mutation_input.items() if value is not None}
 
 
 async def main() -> None:
     client = GraphQLClient()
 
     response = await client.list_query(
-        query=SCORES_BY_LOCATION_ID_QUERY,
-        pagination_key="scoresByLocationID",
+        query=CUSTOMER_DATA_BY_LOCATION_ID_AND_DATE_TIME_QUERY,
+        pagination_key="customerDataByLocationIDAndDateTime",
         variables={"locationID": report_test_location_id},
     )
 
-    payload = response.get("scoresByLocationID", {})
-    scores_to_copy = payload.get("items", [])
+    payload = response.get("customerDataByLocationIDAndDateTime", {})
+    customer_data_to_copy = payload.get("items", [])
 
     print(
-        f"Found {len(scores_to_copy)} score row(s) for location {report_test_location_id}"
+        f"Found {len(customer_data_to_copy)} customer data row(s) for location {report_test_location_id}"
     )
 
-    total_scores = len(scores_to_copy)
+    total_rows = len(customer_data_to_copy)
     copied_count = 0
     failed_count = 0
 
-    for index, score_row in enumerate(scores_to_copy, start=1):
-        mutation_input = {
-            "locationID": report_test_two_location_id,
-            "score": score_row.get("score"),
-            "dateTime": score_row.get("dateTime"),
-            "published": score_row.get("published", False),
-        }
-        mutation_input = {
-            key: value for key, value in mutation_input.items() if value is not None
-        }
+    for index, row in enumerate(customer_data_to_copy, start=1):
+        mutation_input = build_customer_data_input(row)
 
         try:
             await client.execute_mutation(
-                mutation=CREATE_SCORE_MUTATION,
+                mutation=CREATE_CUSTOMER_DATA_MUTATION,
                 variables={"input": mutation_input},
             )
             copied_count += 1
@@ -78,8 +88,8 @@ async def main() -> None:
             failed_count += 1
             print(f"Failed to copy row {index}: {exc}")
 
-        if index % 100 == 0 or index == total_scores:
-            print(f"Progress: {index}/{total_scores} processed")
+        if index % 100 == 0 or index == total_rows:
+            print(f"Progress: {index}/{total_rows} processed")
 
     print(
         "Copy complete. "
