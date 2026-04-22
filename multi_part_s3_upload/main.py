@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from pathlib import Path
 import boto3
 import requests
@@ -57,15 +58,27 @@ if not url:
         "Current Lambda body was: " + str(body_obj)
     )
 
-with image_path.open("rb") as f:
-    put_resp = requests.put(
-        url,
-        data=f,
-        headers={"Content-Type": "image/png", "x-amz-tagging": "docType=camera_image"},
-        timeout=30,
-    )
 
-print("PUT status code: ", put_resp.status_code)
-print("PUT response: ", put_resp.text[:300])
-put_resp.raise_for_status()
+def uploadUsingStandardPut(url):
+    with image_path.open("rb") as f:
+        return requests.put(
+            url,
+            data=f,
+            headers={
+                "Content-Type": "image/png",
+                "x-amz-tagging": "docType=camera_image",
+            },
+            timeout=30,
+        )
+
+
+start_time = time.monotonic()
+standard_put_resp = uploadUsingStandardPut(url)
+elapsed_time = time.monotonic() - start_time
+elapsed_ms = elapsed_time * 1000
+
+print(f"Upload took {elapsed_ms:.2f} ms")
+print("PUT status code: ", standard_put_resp.status_code)
+print("PUT response: ", standard_put_resp.text[:300])
+standard_put_resp.raise_for_status()
 print("Upload successful!")
