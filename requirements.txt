@@ -1,4 +1,5 @@
 python-dotenv>=1.2.2
 gql>=4.0.0
 boto3>=1.34.0
+requests>= 2.33.1
 
