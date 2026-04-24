@@ -1,64 +1,104 @@
 import json
-import os
 import subprocess
+import urllib.request
 from pathlib import Path
-import boto3
 
 LOCATION_ID = "98d2ca8c-73c2-4110-99cf-c6d2b24ec9bb"
-MAC_ADDRESS = "00:1A:2B:3C:4D:5E"
-GET_S3_PRESIGNED_LAMBDA_ARN = (
-    "arn:aws:lambda:eu-west-2:705827784156:function:LineVuPortalIotGetS3Presigned-dev"
-)
-REGION = "eu-west-2"
+URL_TIMEOUT = 14400
+FILE_TYPE = "real-time"
 
 video_path = Path(__file__).parent / "2026-04-11T04_40_00_TILL_2026-04-11T04_44_00.mkv"
 ps_script = Path(__file__).parent / "upload_to_s3.ps1"
+root_env = Path(__file__).parent.parent / "root.env"
 
 if not video_path.exists():
     raise FileNotFoundError(f"Video file not found: {video_path}")
 
-key_name = video_path.name
-payload = {"mac_address": MAC_ADDRESS, "key_name": key_name}
 
-aws_profile = os.getenv("AWS_PROFILE")
-if aws_profile:
-    session = boto3.Session(profile_name=aws_profile, region_name=REGION)
-else:
-    session = boto3.Session(region_name=REGION)
+def load_env(path):
+    env = {}
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if "=" in line and not line.startswith("#"):
+            k, v = line.split("=", 1)
+            env[k.strip()] = v.strip()
+    return env
 
-lambda_client = session.client("lambda")
 
-print(f"Invoking Lambda for key: {key_name}")
-resp = lambda_client.invoke(
-    FunctionName=GET_S3_PRESIGNED_LAMBDA_ARN,
-    InvocationType="RequestResponse",
-    Payload=json.dumps(payload).encode("utf-8"),
+env = load_env(root_env)
+GRAPHQL_ENDPOINT = env["dev_api_endpoint"]
+GRAPHQL_API_KEY = env["dev_api_key"]
+
+file_name = "2026-04-11T04_40_00_TILL_2026-04-11T04_44_00.mkv"
+
+mutation = """
+    mutation CREATE_PRE_SIGNED_URL($file_type: String!, $filename: String!, $locationID: String!, $timeout: Int!) {
+        createPreSignedURL(
+            file_type: $file_type
+            filename: $filename
+            locationID: $locationID
+            timeout: $timeout
+        )
+    }
+"""
+
+payload = json.dumps(
+    {
+        "query": mutation,
+        "variables": {
+            "file_type": FILE_TYPE,
+            "filename": file_name,
+            "locationID": LOCATION_ID,
+            "timeout": URL_TIMEOUT,
+        },
+    }
+).encode("utf-8")
+
+req = urllib.request.Request(
+    GRAPHQL_ENDPOINT,
+    data=payload,
+    headers={
+        "Content-Type": "application/json",
+        "x-api-key": GRAPHQL_API_KEY,
+    },
+    method="POST",
 )
 
-raw = resp["Payload"].read().decode("utf-8")
-print("Raw Lambda response:", raw)
-outer = json.loads(raw)
-body = outer.get("body")
+print(f"Requesting presigned URL via GraphQL for: {file_name}")
+with urllib.request.urlopen(req) as resp:
+    raw = resp.read().decode("utf-8")
 
-body_obj = {}
-if isinstance(body, dict):
-    body_obj = body
-elif isinstance(body, str):
-    try:
-        parsed_body = json.loads(body)
-        body_obj = parsed_body if isinstance(parsed_body, dict) else {"message": str(parsed_body)}
-    except json.JSONDecodeError:
-        body_obj = {"message": body}
+print("Raw GraphQL response:", raw)
+body = json.loads(raw)
 
-url = body_obj.get("url")
-if not url:
-    raise RuntimeError("No presigned URL in Lambda response. Body was: " + str(body_obj))
+if "errors" in body:
+    raise RuntimeError("GraphQL errors: " + json.dumps(body["errors"], indent=2))
 
-print(f"\nPresigned URL obtained.")
+raw_result = body["data"]["createPreSignedURL"]
+if not raw_result:
+    raise RuntimeError("No presigned URL in GraphQL response: " + raw)
+
+# AppSync serializes the Lambda response object as a Groovy-style string:
+# "{statusCode=200, body=https://...}" — extract just the URL after "body="
+if raw_result.startswith("{") and "body=" in raw_result:
+    idx = raw_result.index("body=") + len("body=")
+    url = raw_result[idx:].rstrip("}")
+else:
+    url = raw_result
+
+print("Presigned URL obtained.")
 print(f"Invoking PowerShell upload script...")
 
 result = subprocess.run(
-    ["pwsh", "-File", str(ps_script), "-PresignedUrl", url, "-FilePath", str(video_path)],
+    [
+        "pwsh",
+        "-File",
+        str(ps_script),
+        "-PresignedUrl",
+        url,
+        "-FilePath",
+        str(video_path),
+    ],
     capture_output=False,
 )
 
