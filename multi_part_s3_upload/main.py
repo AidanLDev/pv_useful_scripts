@@ -33,7 +33,6 @@ resp = lambda_client.invoke(
 )
 
 raw = resp["Payload"].read().decode("utf-8")
-print("Raw response from Lambda: ", raw)
 outer = json.loads(raw)
 body = outer.get("body")
 
@@ -72,13 +71,44 @@ def uploadUsingStandardPut(url):
         )
 
 
+http_session = requests.Session()
+
+RETRY_ATTEMPTS = 3
+RETRY_BACKOFF_BASE = 2  # seconds
+
+
+def uploadWithRetry(url):
+    for attempt in range(1, RETRY_ATTEMPTS + 1):
+        try:
+            with image_path.open("rb") as f:
+                resp = http_session.put(
+                    url,
+                    data=f,
+                    headers={
+                        "Content-Type": "image/png",
+                        "x-amz-tagging": "docType=camera_image",
+                    },
+                    timeout=(5, 30),  # (connect timeout, read timeout)
+                )
+            resp.raise_for_status()
+            return resp
+        except (requests.Timeout, requests.ConnectionError) as e:
+            if attempt == RETRY_ATTEMPTS:
+                raise
+            wait = RETRY_BACKOFF_BASE ** attempt
+            print(f"Attempt {attempt} failed: {e}. Retrying in {wait}s...")
+            time.sleep(wait)
+
+
+# start_time = time.monotonic()
+# standard_put_resp = uploadUsingStandardPut(url)
+# elapsed_time = time.monotonic() - start_time
+# elapsed_ms = elapsed_time * 1000
+# print(f"standard upload took {elapsed_ms:.2f} ms")
+
 start_time = time.monotonic()
-standard_put_resp = uploadUsingStandardPut(url)
+retry_resp = uploadWithRetry(url)
 elapsed_time = time.monotonic() - start_time
 elapsed_ms = elapsed_time * 1000
-
-print(f"Upload took {elapsed_ms:.2f} ms")
-print("PUT status code: ", standard_put_resp.status_code)
-print("PUT response: ", standard_put_resp.text[:300])
-standard_put_resp.raise_for_status()
-print("Upload successful!")
+print(f"retry upload took {elapsed_ms:.2f} ms")
+print(retry_resp)
