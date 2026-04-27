@@ -1,20 +1,13 @@
+import base64
 import json
-import math
-import os
 import subprocess
-import tempfile
-import urllib.request
 import time
+import urllib.request
 from pathlib import Path
-from urllib.parse import urlparse
-
-import boto3
-from botocore.config import Config
 
 LOCATION_ID = "98d2ca8c-73c2-4110-99cf-c6d2b24ec9bb"
 URL_TIMEOUT = 14400
 FILE_TYPE = "real-time"
-PART_SIZE_BYTES = 8 * 1024 * 1024  # 8 MB — AWS minimum for non-final parts is 5 MB
 
 video_path = Path(__file__).parent / "2026-04-11T04_40_00_TILL_2026-04-11T04_44_00.mkv"
 ps_script = Path(__file__).parent / "upload_to_s3.ps1"
@@ -34,57 +27,11 @@ def load_env(path):
     return env
 
 
-def parse_presigned_url(url):
-    p = urlparse(url)
-    parts = p.netloc.split(".")
-    bucket = parts[0]
-    s3_key = p.path.lstrip("/")
-    use_accelerate = "s3-accelerate" in p.netloc
-    # Standard format: {bucket}.s3.{region}.amazonaws.com has 5+ parts
-    region = ".".join(parts[2:-2]) if parts[1] == "s3" and len(parts) >= 5 else None
-    return bucket, region, s3_key, use_accelerate
-
-
-def build_multipart_config(s3_client, bucket, s3_key, file_path):
-    file_size = file_path.stat().st_size
-    part_count = math.ceil(file_size / PART_SIZE_BYTES)
-    print(f"File size: {file_size / (1024**2):.1f} MB — {part_count} parts of {PART_SIZE_BYTES // (1024**2)} MB each")
-
-    resp = s3_client.create_multipart_upload(Bucket=bucket, Key=s3_key)
-    upload_id = resp["UploadId"]
-    print(f"Multipart upload initiated. UploadId: {upload_id}")
-
-    part_urls = [
-        s3_client.generate_presigned_url(
-            "upload_part",
-            Params={"Bucket": bucket, "Key": s3_key, "UploadId": upload_id, "PartNumber": n},
-            ExpiresIn=URL_TIMEOUT,
-        )
-        for n in range(1, part_count + 1)
-    ]
-    complete_url = s3_client.generate_presigned_url(
-        "complete_multipart_upload",
-        Params={"Bucket": bucket, "Key": s3_key, "UploadId": upload_id},
-        ExpiresIn=URL_TIMEOUT,
-    )
-    abort_url = s3_client.generate_presigned_url(
-        "abort_multipart_upload",
-        Params={"Bucket": bucket, "Key": s3_key, "UploadId": upload_id},
-        ExpiresIn=URL_TIMEOUT,
-    )
-    return {
-        "partUrls": part_urls,
-        "completeUrl": complete_url,
-        "abortUrl": abort_url,
-        "partSizeBytes": PART_SIZE_BYTES,
-    }
-
-
 env = load_env(root_env)
 GRAPHQL_ENDPOINT = env["dev_api_endpoint"]
 GRAPHQL_API_KEY = env["dev_api_key"]
 
-file_name = "2026-04-11T04_40_00_TILL_2026-04-11T04_44_00.mkv"
+file_name = video_path.name
 
 mutation = """
     mutation CREATE_PRE_SIGNED_URL($file_type: String!, $filename: String!, $locationID: String!, $timeout: Int!) {
@@ -119,7 +66,7 @@ req = urllib.request.Request(
     method="POST",
 )
 
-print(f"Requesting presigned URL via GraphQL for: {file_name}")
+print(f"Calling createPreSignedURL via GraphQL for: {file_name}")
 with urllib.request.urlopen(req) as resp:
     raw = resp.read().decode("utf-8")
 
@@ -131,78 +78,37 @@ if "errors" in body:
 
 raw_result = body["data"]["createPreSignedURL"]
 if not raw_result:
-    raise RuntimeError("No presigned URL in GraphQL response: " + raw)
+    raise RuntimeError("No result in GraphQL response: " + raw)
 
-# AppSync serializes the Lambda response object as a Groovy-style string:
-# "{statusCode=200, body=https://...}" — extract just the URL after "body="
-if raw_result.startswith("{") and "body=" in raw_result:
-    idx = raw_result.index("body=") + len("body=")
-    url = raw_result[idx:].rstrip("}")
-else:
-    url = raw_result
+# AppSync serializes the Lambda response as: {statusCode=200, body=JSON_VALUE}
+# body= is always the last field; slice off the trailing } of the wrapper object.
+# Mirrors the JS in StartRealtimeJob: presignedURLString.slice(bodyIdx, -1)
+body_idx = raw_result.index("body=") + len("body=")
+multipart_data = json.loads(raw_result[body_idx:-1])
+presigned_url = multipart_data["metadataUrl"]
 
-print("Presigned URL obtained.")
+print(f"presignedUrl obtained ({len(presigned_url)} chars)")
 
-bucket, region, s3_key, use_accelerate = parse_presigned_url(url)
-effective_region = region or env.get("aws_region", "eu-west-2")
-print(f"Bucket: {bucket}, region: {effective_region}, key: {s3_key}, accelerate: {use_accelerate}")
+# Base64-encode exactly as LineVuConnect.py does before substituting ${presigned_url_b64}
+presigned_url_b64 = base64.b64encode(presigned_url.encode()).decode()
 
-aws_profile = os.getenv("AWS_PROFILE")
-session = (
-    boto3.Session(profile_name=aws_profile, region_name=effective_region)
-    if aws_profile
-    else boto3.Session(region_name=effective_region)
-)
-s3_config = Config(s3={"use_accelerate_endpoint": True}) if use_accelerate else None
-s3_client = session.client("s3", config=s3_config)
-
-print("\nPre-generating multipart presigned URLs...")
-mp_config = build_multipart_config(s3_client, bucket, s3_key, video_path)
-
-# --- Standard PUT ---
-# print("\n--- Standard PUT Upload ---")
-# start_put = time.monotonic()
-# result = subprocess.run(
-#     ["pwsh", "-File", str(ps_script), "-PresignedUrl", url, "-FilePath", str(video_path)],
-#     capture_output=False,
-# )
-# put_ms = (time.monotonic() - start_put) * 1000
-# print(f"Standard PUT took {put_ms:.2f} ms")
-
-# if result.returncode != 0:
-#     raise RuntimeError(f"PowerShell script failed with exit code {result.returncode}")
-
-# --- Multi-Part Upload ---
 print("\n--- Multi-Part Upload ---")
-with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as tmp:
-    json.dump(mp_config, tmp)
-    tmp_path = tmp.name
+start = time.monotonic()
 
-try:
-    start_mp = time.monotonic()
-    result_mp = subprocess.run(
-        ["pwsh", "-File", str(ps_script), "-MultipartConfigPath", tmp_path, "-FilePath", str(video_path)],
-        capture_output=False,
-    )
-finally:
-    os.unlink(tmp_path)
+result = subprocess.run(
+    [
+        "pwsh",
+        "-File", str(ps_script),
+        "-presignedUrlB64", presigned_url_b64,
+        "-FilePath", str(video_path),
+    ],
+    capture_output=False,
+)
 
-mp_ms = (time.monotonic() - start_mp) * 1000
-print(f"Multi-part upload took {mp_ms:.2f} ms")
+elapsed_s = time.monotonic() - start
+print(f"\nMulti-part upload took {elapsed_s * 1000:.2f} ms ({elapsed_s:.2f} s)")
 
-if result_mp.returncode != 0:
-    raise RuntimeError(f"Multi-part PowerShell script failed with exit code {result_mp.returncode}")
+if result.returncode != 0:
+    raise RuntimeError(f"PowerShell script failed with exit code {result.returncode}")
 
-# --- Comparison ---
-print("\n" + "=" * 50)
-print("UPLOAD TIMING COMPARISON")
-print("=" * 50)
-# print(f"  Standard PUT:       {put_ms:>10.2f} ms  ({put_ms/1000:.2f} s)")
-print(f"  Multi-part upload:  {mp_ms:>10.2f} ms  ({mp_ms/1000:.2f} s)")
-# diff = put_ms - mp_ms
-# if diff > 0:
-    # print(f"  Multi-part FASTER by {diff:.2f} ms ({put_ms/mp_ms:.2f}x)")
-# else:
-    # print(f"  Standard PUT FASTER by {abs(diff):.2f} ms ({mp_ms/put_ms:.2f}x slower for multi-part)")
-# print("=" * 50)
 print("Done.")
