@@ -22,13 +22,14 @@ int main(int argc, char *argv[])
 
     gst_init(&argc, &argv);
 
-    string cameraIp  = "192.168.1.240";
+    string cameraIp = "192.168.1.240";
     string dummyFile = "/home/aidan/repos/work/pv_useful_scripts/multi_part_s3_upload/2026-04-11T04_40_00_TILL_2026-04-11T04_44_00.mkv";
     string outputDir = "/tmp/hls";
-    string dbPath    = "./segments.db";
-    bool   forceDummy = false;
+    string dbPath = "./segments.db";
+    bool forceDummy = false;
 
-    for (int i = 1; i < argc; ++i) {
+    for (int i = 1; i < argc; ++i)
+    {
         string arg = argv[i];
         if (arg == "--ip" && i + 1 < argc)
             cameraIp = argv[++i];
@@ -36,20 +37,24 @@ int main(int argc, char *argv[])
             outputDir = argv[++i];
         else if (arg == "--db" && i + 1 < argc)
             dbPath = argv[++i];
-        else if (arg == "--file" && i + 1 < argc) {
+        else if (arg == "--file" && i + 1 < argc)
+        {
             dummyFile = argv[++i];
             forceDummy = true;
-        } else if (arg == "--dummy")
+        }
+        else if (arg == "--dummy")
             forceDummy = true;
     }
 
     filesystem::create_directories(outputDir);
 
     SegmentDatabase db(dbPath);
-    SegmentWatcher  watcher(outputDir, db);
+    SegmentWatcher watcher(outputDir, db);
 
-    if (!forceDummy) {
-        try {
+    if (!forceDummy)
+    {
+        try
+        {
             Camera camera(cameraIp);
             cout << "Camera: " << camera.width() << "x" << camera.height()
                  << " " << camera.pixelFormat() << "\n";
@@ -60,7 +65,8 @@ int main(int argc, char *argv[])
             camera.startStream();
             cout << "Streaming to " << outputDir << "/stream.m3u8 — Ctrl+C to stop\n";
 
-            while (running) {
+            while (running)
+            {
                 size_t size = 0;
                 const uint8_t *data = camera.grabFrame(size);
                 pipeline.pushFrame(data, size);
@@ -70,16 +76,21 @@ int main(int argc, char *argv[])
             camera.stopStream();
             pipeline.stop();
             return 0;
-        } catch (const exception &ex) {
+        }
+        catch (const exception &ex)
+        {
             cerr << "Camera unavailable (" << ex.what() << ") — falling back to dummy pipeline\n";
         }
     }
 
-    try {
+    try
+    {
         DummyPipeline dummy(dummyFile, outputDir);
         cout << "Streaming to " << outputDir << "/stream.m3u8 — Ctrl+C to stop\n";
         dummy.run(running);
-    } catch (const exception &ex) {
+    }
+    catch (const exception &ex)
+    {
         cerr << "Error: " << ex.what() << "\n";
         return 1;
     }
