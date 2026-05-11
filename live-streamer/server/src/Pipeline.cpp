@@ -11,8 +11,8 @@ Pipeline::Pipeline(int width, int height, const std::string& bayerFormat, const 
     desc << "appsrc name=src is-live=true format=time "
          << "caps=video/x-bayer,format=" << bayerFormat
          << ",width=" << width << ",height=" << height << ",framerate=30/1 "
-         << "! bayer2rgb ! videoconvert ! x265enc ! h265parse "
-         << "! hlssink2 "
+         << "! bayer2rgb ! videoconvert ! x264enc tune=zerolatency ! h264parse "
+         << "! hlssink2 max-files=0 "
          << "location=" << outputDir << "/seg%05d.ts "
          << "playlist-location=" << outputDir << "/stream.m3u8";
 

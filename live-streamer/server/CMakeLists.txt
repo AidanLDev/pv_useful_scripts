@@ -13,6 +13,9 @@ find_library(GENAPI_LIB   NAMES GenApi_gcc54_v3_3_LUCID  HINTS "${GENICAM_LIB_DI
 find_library(OPENCV_CORE  NAMES opencv_core               HINTS "${ARENA_SDK_ROOT}/lib64" REQUIRED)
 find_library(OPENCV_IMGP  NAMES opencv_imgproc            HINTS "${ARENA_SDK_ROOT}/lib64" REQUIRED)
 
+# SQLite3
+find_package(SQLite3 REQUIRED)
+
 # GStreamer
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GST REQUIRED
@@ -26,6 +29,9 @@ add_executable(lucid_stream
     src/main.cpp
     src/Camera.cpp
     src/Pipeline.cpp
+    src/DummyPipeline.cpp
+    src/SegmentDatabase.cpp
+    src/SegmentWatcher.cpp
 )
 
 target_include_directories(lucid_stream PRIVATE
@@ -46,12 +52,15 @@ target_link_libraries(lucid_stream PRIVATE
     ${OPENCV_CORE}
     ${OPENCV_IMGP}
     ${GST_LIBRARIES}
+    SQLite3::SQLite3
 )
 
 # Use old-style RPATH (not RUNPATH) so transitive deps are also found
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")
 
 set_target_properties(lucid_stream PROPERTIES
-    BUILD_RPATH   "${ARENA_SDK_ROOT}/lib64:${GENICAM_LIB_DIR}"
-    INSTALL_RPATH "${ARENA_SDK_ROOT}/lib64:${GENICAM_LIB_DIR}"
+    BUILD_RPATH   "${ARENA_SDK_ROOT}/lib64:${GENICAM_LIB_DIR}:${ARENA_SDK_ROOT}/Metavision/lib:${ARENA_SDK_ROOT}/OpenCV/lib:${ARENA_SDK_ROOT}/ffmpeg:${ARENA_SDK_ROOT}/Qt/lib"
+    INSTALL_RPATH "${ARENA_SDK_ROOT}/lib64:${GENICAM_LIB_DIR}:${ARENA_SDK_ROOT}/Metavision/lib:${ARENA_SDK_ROOT}/OpenCV/lib:${ARENA_SDK_ROOT}/ffmpeg:${ARENA_SDK_ROOT}/Qt/lib"
 )
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
