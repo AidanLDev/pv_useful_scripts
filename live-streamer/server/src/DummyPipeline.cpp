@@ -47,9 +47,17 @@ void DummyPipeline::run(const std::atomic<bool>& running)
             static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
         if (!msg) continue;
         GstMessageType type = GST_MESSAGE_TYPE(msg);
+        if (type == GST_MESSAGE_EOS)    { gst_message_unref(msg); std::cout << "End of stream\n"; break; }
+        if (type == GST_MESSAGE_ERROR)  {
+            GError* err = nullptr; gchar* dbg = nullptr;
+            gst_message_parse_error(msg, &err, &dbg);
+            std::cerr << "Pipeline error: " << (err ? err->message : "unknown")
+                      << "\nDebug: " << (dbg ? dbg : "none") << "\n";
+            g_clear_error(&err); g_free(dbg);
+            gst_message_unref(msg);
+            break;
+        }
         gst_message_unref(msg);
-        if (type == GST_MESSAGE_EOS)    { std::cout << "End of stream\n"; break; }
-        if (type == GST_MESSAGE_ERROR)  { std::cerr << "Pipeline error\n"; break; }
     }
 
     gst_object_unref(bus);

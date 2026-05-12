@@ -52,7 +52,7 @@ target_link_libraries(lucid_stream PRIVATE
     ${OPENCV_CORE}
     ${OPENCV_IMGP}
     ${GST_LIBRARIES}
-    SQLite3::SQLite3
+    SQLite::SQLite3 # On Arch SQLite3::SQLite3 worked, might need to revert SQLite::SQLite3 -> SQLite3::SQLite3
 )
 
 # Use old-style RPATH (not RUNPATH) so transitive deps are also found

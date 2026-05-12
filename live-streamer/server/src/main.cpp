@@ -23,7 +23,9 @@ int main(int argc, char *argv[])
     gst_init(&argc, &argv);
 
     string cameraIp = "192.168.1.240";
-    string dummyFile = "/home/aidan/repos/work/pv_useful_scripts/multi_part_s3_upload/2026-04-11T04_40_00_TILL_2026-04-11T04_44_00.mkv";
+    // Resolve relative to the executable: <repo>/live-streamer/server/<build>/server -> <repo>/multi_part_s3_upload/
+    filesystem::path exeDir = filesystem::canonical(argv[0]).parent_path();
+    string dummyFile = (exeDir / "../../../multi_part_s3_upload/2026-04-11T04_40_00_TILL_2026-04-11T04_44_00.mkv").string();
     string outputDir = "/tmp/hls";
     string dbPath = "./segments.db";
     bool forceDummy = false;
