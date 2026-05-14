@@ -5,6 +5,7 @@
 #include <thread>
 #include <ctime>
 #include <cstdio>
+#include <filesystem>
 
 static std::string fmtTime(double unixTime)
 {
@@ -25,8 +26,13 @@ static double nowUnix()
 SegmentWatcher::SegmentWatcher(const std::string& outputDir, SegmentDatabase& db)
     : outputDir_(outputDir), db_(db)
 {
-    // Pre-seed seen_ from DB so we don't re-insert segments from previous runs.
-    seen_ = db_.allFilenames();
+    // Pre-seed seen_ only for files still on disk — guards against re-inserting
+    // segments from an in-progress stream after a server restart, without
+    // blocking new runs that reuse the same filenames (e.g. seg00000.ts).
+    for (const auto& fname : db_.allFilenames()) {
+        if (std::filesystem::exists(outputDir_ + "/" + fname))
+            seen_.insert(fname);
+    }
     thread_ = std::thread(&SegmentWatcher::run, this);
 }
 

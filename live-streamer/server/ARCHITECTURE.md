@@ -33,13 +33,13 @@ Parses CLI arguments, initialises GStreamer, and runs the main capture loop.
 
 **CLI flags:**
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--ip <addr>` | `192.168.1.240` | Camera IP address |
-| `--out <dir>` | `/tmp/hls` | HLS segment output directory |
-| `--db <path>` | `./segments.db` | SQLite database file |
-| `--file <path>` | — | Use a video file as the source (implies dummy pipeline) |
-| `--dummy` | — | Force the dummy pipeline even if a camera is reachable |
+| Flag            | Default         | Description                                             |
+| --------------- | --------------- | ------------------------------------------------------- |
+| `--ip <addr>`   | `192.168.1.240` | Camera IP address                                       |
+| `--out <dir>`   | `/tmp/hls`      | HLS segment output directory                            |
+| `--db <path>`   | `./segments.db` | SQLite database file                                    |
+| `--file <path>` | —               | Use a video file as the source (implies dummy pipeline) |
+| `--dummy`       | —               | Force the dummy pipeline even if a camera is reachable  |
 
 ---
 
@@ -49,13 +49,13 @@ Wraps the Lucid Arena SDK to connect to a camera, configure the sensor, and deli
 
 **Key methods:**
 
-| Method | Description |
-|--------|-------------|
-| `Camera(ip)` | Discovers and connects to the camera at the given IP via Arena unicast |
-| `startStream()` | Configures pixel format (BayerRG8/GR8/BG8/GB8) and packet size (1440 bytes for GigE), then starts acquisition |
-| `grabFrame(size)` | Blocks until a frame is available; returns a pointer to raw Bayer data and sets `size` |
-| `releaseFrame()` | Returns the buffer back to the device queue — must be called after every `grabFrame` |
-| `toGstBayerFormat()` | Maps Arena pixel-format strings to GStreamer Bayer format strings (e.g. `BayerRG8` → `bggr`) |
+| Method               | Description                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `Camera(ip)`         | Discovers and connects to the camera at the given IP via Arena unicast                                        |
+| `startStream()`      | Configures pixel format (BayerRG8/GR8/BG8/GB8) and packet size (1440 bytes for GigE), then starts acquisition |
+| `grabFrame(size)`    | Blocks until a frame is available; returns a pointer to raw Bayer data and sets `size`                        |
+| `releaseFrame()`     | Returns the buffer back to the device queue — must be called after every `grabFrame`                          |
+| `toGstBayerFormat()` | Maps Arena pixel-format strings to GStreamer Bayer format strings (e.g. `BayerRG8` → `bggr`)                  |
 
 ---
 
@@ -83,12 +83,12 @@ appsrc (raw Bayer)
 
 **Key methods:**
 
-| Method | Description |
-|--------|-------------|
-| `Pipeline(description)` | Parses and instantiates a GStreamer pipeline from a description string |
-| `start()` | Transitions the pipeline to `PLAYING` |
+| Method                  | Description                                                                 |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `Pipeline(description)` | Parses and instantiates a GStreamer pipeline from a description string      |
+| `start()`               | Transitions the pipeline to `PLAYING`                                       |
 | `pushFrame(data, size)` | Wraps raw bytes in a `GstBuffer`, sets PTS/duration, and pushes to `appsrc` |
-| `stop()` | Sends EOS, waits for the pipeline to drain, then transitions to `NULL` |
+| `stop()`                | Sends EOS, waits for the pipeline to drain, then transitions to `NULL`      |
 
 ---
 
@@ -141,11 +141,11 @@ CREATE INDEX idx_time ON segments (start_time, end_time);
 
 **Key methods:**
 
-| Method | Description |
-|--------|-------------|
-| `SegmentDatabase(path)` | Opens (or creates) the SQLite file; creates the table and index if absent |
-| `insert(SegmentRecord)` | `INSERT OR IGNORE` — idempotent, safe to call on already-seen segments |
-| `allFilenames()` | Returns a `std::unordered_set<string>` of every filename in the DB (used on startup to pre-seed the watcher) |
+| Method                  | Description                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `SegmentDatabase(path)` | Opens (or creates) the SQLite file; creates the table and index if absent                                    |
+| `insert(SegmentRecord)` | `INSERT OR IGNORE` — idempotent, safe to call on already-seen segments                                       |
+| `allFilenames()`        | Returns a `std::unordered_set<string>` of every filename in the DB (used on startup to pre-seed the watcher) |
 
 ---
 
@@ -162,6 +162,9 @@ A background thread that polls `stream.m3u8` once per second, detects newly-writ
    - For each filename not in `seen_`, compute its wall-clock start time anchored to `std::chrono::system_clock::now()` at the moment the segment is first observed (subsequent segments are offset by their cumulative durations from that anchor).
    - `SegmentDatabase::insert()` the record.
    - Add the filename to `seen_`.
+
+The segments are H.264 encoded and compact. They are space-efficient and compressed and ffmpeg can turn them into playable videos.
+**.ts files** - MPEG-2 Transport stream, a container format, not raw video, like mp4 for streaming, they wrap the H.264 bitstream.
 
 ---
 
@@ -187,12 +190,12 @@ Internally it runs `ffmpeg -f concat -safe 0 -i <list> -c copy clip.mp4`.
 
 **Dependencies:**
 
-| Library | Purpose |
-|---------|---------|
-| Arena SDK | Lucid GigE camera API |
-| GStreamer 1.0 (`gstreamer-app`, `gstreamer-video`) | Pipeline, encoding, HLS muxing |
-| SQLite3 | Segment metadata storage |
-| OpenCV (`core`, `imgproc`) | Bundled with Arena SDK; available for frame pre-processing |
+| Library                                            | Purpose                                                    |
+| -------------------------------------------------- | ---------------------------------------------------------- |
+| Arena SDK                                          | Lucid GigE camera API                                      |
+| GStreamer 1.0 (`gstreamer-app`, `gstreamer-video`) | Pipeline, encoding, HLS muxing                             |
+| SQLite3                                            | Segment metadata storage                                   |
+| OpenCV (`core`, `imgproc`)                         | Bundled with Arena SDK; available for frame pre-processing |
 
 **CMake build:**
 
