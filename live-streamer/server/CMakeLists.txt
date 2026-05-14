@@ -7,9 +7,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(ARENA_SDK_ROOT "/opt/ArenaSDK" CACHE PATH "Path to Arena SDK root")
 set(GENICAM_LIB_DIR "${ARENA_SDK_ROOT}/GenICam/library/lib/Linux64_x64")
 
-find_library(ARENA_LIB    NAMES arena                   HINTS "${ARENA_SDK_ROOT}/lib64" REQUIRED)
-find_library(GCBASE_LIB   NAMES GCBase_gcc54_v3_3_LUCID  HINTS "${GENICAM_LIB_DIR}"     REQUIRED)
-find_library(GENAPI_LIB   NAMES GenApi_gcc54_v3_3_LUCID  HINTS "${GENICAM_LIB_DIR}"     REQUIRED)
+find_library(ARENA_LIB    NAMES arena                     HINTS "${ARENA_SDK_ROOT}/lib64" REQUIRED)
+find_library(GCBASE_LIB   NAMES GCBase_gcc54_v3_3_LUCID   HINTS "${GENICAM_LIB_DIR}"     REQUIRED)
+find_library(GENAPI_LIB   NAMES GenApi_gcc54_v3_3_LUCID   HINTS "${GENICAM_LIB_DIR}"     REQUIRED)
 find_library(OPENCV_CORE  NAMES opencv_core               HINTS "${ARENA_SDK_ROOT}/lib64" REQUIRED)
 find_library(OPENCV_IMGP  NAMES opencv_imgproc            HINTS "${ARENA_SDK_ROOT}/lib64" REQUIRED)
 
@@ -31,7 +31,7 @@ add_executable(lucid_stream
     src/Pipeline.cpp
     src/DummyPipeline.cpp
     src/SegmentDatabase.cpp
-    src/SegmentWatcher.cpp
+    src/SegmentSink.cpp
 )
 
 target_include_directories(lucid_stream PRIVATE

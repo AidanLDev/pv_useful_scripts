@@ -2,7 +2,9 @@
 #include <iostream>
 #include <stdexcept>
 
-DummyPipeline::DummyPipeline(const std::string& sourceFile, const std::string& outputDir)
+DummyPipeline::DummyPipeline(const std::string& sourceFile,
+                             const std::string& outputDir,
+                             SegmentDatabase& db)
 {
     std::string src;
     if (sourceFile.empty()) {
@@ -14,11 +16,13 @@ DummyPipeline::DummyPipeline(const std::string& sourceFile, const std::string& o
         src = "filesrc location=" + sourceFile + " ! decodebin";
     }
 
+    // key-int-max=60 and config-interval=-1 mirror the live Pipeline settings
+    // so each .h264 segment is self-decodable.
     std::string desc = src +
-        " ! videoconvert ! x264enc tune=zerolatency ! h264parse"
-        " ! hlssink2 max-files=0"
-        " location=" + outputDir + "/seg%05d.ts"
-        " playlist-location=" + outputDir + "/stream.m3u8";
+        " ! videoconvert"
+        " ! x264enc tune=zerolatency key-int-max=60"
+        " ! h264parse config-interval=-1"
+        " ! appsink name=sink sync=false";
 
     GError* err = nullptr;
     pipeline_ = gst_parse_launch(desc.c_str(), &err);
@@ -27,6 +31,9 @@ DummyPipeline::DummyPipeline(const std::string& sourceFile, const std::string& o
         g_error_free(err);
         throw std::runtime_error("DummyPipeline: " + msg);
     }
+
+    appsink_ = gst_bin_get_by_name(GST_BIN(pipeline_), "sink");
+    sink_ = std::make_unique<SegmentSink>(appsink_, outputDir, db);
 }
 
 DummyPipeline::~DummyPipeline()
@@ -35,6 +42,8 @@ DummyPipeline::~DummyPipeline()
         gst_element_set_state(pipeline_, GST_STATE_NULL);
         gst_object_unref(pipeline_);
     }
+    if (sink_)    sink_->flush();
+    if (appsink_) gst_object_unref(appsink_);
 }
 
 void DummyPipeline::run(const std::atomic<bool>& running)
@@ -47,8 +56,12 @@ void DummyPipeline::run(const std::atomic<bool>& running)
             static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
         if (!msg) continue;
         GstMessageType type = GST_MESSAGE_TYPE(msg);
-        if (type == GST_MESSAGE_EOS)    { gst_message_unref(msg); std::cout << "End of stream\n"; break; }
-        if (type == GST_MESSAGE_ERROR)  {
+        if (type == GST_MESSAGE_EOS) {
+            gst_message_unref(msg);
+            std::cout << "End of stream\n";
+            break;
+        }
+        if (type == GST_MESSAGE_ERROR) {
             GError* err = nullptr; gchar* dbg = nullptr;
             gst_message_parse_error(msg, &err, &dbg);
             std::cerr << "Pipeline error: " << (err ? err->message : "unknown")
@@ -62,4 +75,5 @@ void DummyPipeline::run(const std::atomic<bool>& running)
 
     gst_object_unref(bus);
     gst_element_set_state(pipeline_, GST_STATE_NULL);
+    if (sink_) sink_->flush();
 }
