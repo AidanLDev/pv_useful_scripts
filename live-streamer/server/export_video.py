@@ -16,10 +16,8 @@ so they are self-decodable and can be concatenated without re-encoding.
 """
 
 import argparse
-import os
 import sqlite3
 import subprocess
-import tempfile
 from datetime import datetime, timezone
 
 
@@ -50,7 +48,7 @@ def main():
 
     conn = sqlite3.connect(args.db)
     rows = conn.execute(
-        "SELECT path, start_time, end_time, duration FROM segments"
+        "SELECT path, start_time, end_time FROM segments"
         " WHERE end_time > ? AND start_time < ?"
         " ORDER BY start_time",
         (start_iso, end_iso),
@@ -63,34 +61,27 @@ def main():
 
     print(f"Found {len(rows)} segment(s) covering {rows[0][1]} → {rows[-1][2]}")
 
-    # Build an ffconcat file with explicit per-segment durations so ffmpeg can
-    # synthesise correct timestamps from the raw H.264 Annex B bitstream.
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-        f.write("ffconcat version 1.0\n")
-        for (path, _start, _end, duration) in rows:
-            f.write(f"file '{path}'\n")
-            f.write(f"duration {duration:.6f}\n")
-        concat_file = f.name
+    # Use the concat *protocol* (not the concat demuxer) so all segments are
+    # treated as one continuous byte stream.  The demuxer approach processes
+    # each file independently, giving each segment a DTS counter that restarts
+    # near 0 — producing non-monotonic DTS at every boundary and a broken
+    # duration in the output container.  Byte-level concatenation avoids this:
+    # -r 30 synthesises a single monotonic timestamp sequence across the whole
+    # stream, and h264parse config-interval=-1 ensures every IDR is preceded by
+    # in-band SPS/PPS so repeated parameter sets at boundaries are harmless.
+    concat_uri = "concat:" + "|".join(path for (path, *_) in rows)
 
-    try:
-        subprocess.run(
-            [
-                "ffmpeg",
-                # Input: ffconcat list of raw H.264 Annex B files.
-                # -r provides a framerate hint used when the bitstream does not
-                # carry VUI timing information.
-                "-r", "30",
-                "-f", "concat", "-safe", "0",
-                "-i", concat_file,
-                # Stream-copy: no re-encode, just wrap in the output container.
-                "-c", "copy",
-                args.output,
-            ],
-            check=True,
-        )
-        print(f"Exported → {args.output}")
-    finally:
-        os.unlink(concat_file)
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-r", "30",      # input framerate — synthesises timestamps for raw Annex B
+            "-i", concat_uri,
+            "-c", "copy",    # no re-encode; just wrap in the output container
+            args.output,
+        ],
+        check=True,
+    )
+    print(f"Exported → {args.output}")
 
 
 if __name__ == "__main__":

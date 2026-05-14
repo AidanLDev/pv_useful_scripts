@@ -19,6 +19,7 @@ Pipeline::Pipeline(int width, int height, const std::string& bayerFormat,
          << "! bayer2rgb ! videoconvert "
          << "! x264enc tune=zerolatency key-int-max=60 "
          << "! h264parse config-interval=-1 "
+         << "! video/x-h264,stream-format=byte-stream,alignment=au "
          << "! appsink name=sink sync=false";
 
     GError* err = nullptr;
