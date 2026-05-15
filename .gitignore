@@ -8,3 +8,6 @@ __pycache__/
 *.pyd
 .venv
 2026-04-11T04_40_00_TILL_2026-04-11T04_44_00.mkv
+
+# Windows alternate data streams (Zone.Identifier etc.)
+*:*
