@@ -1,0 +1,8 @@
+build/
+ARCHITECTURE.md
+segments.db
+vid.mp4
+main.exe
+*.o
+*.a
+lucid_stream

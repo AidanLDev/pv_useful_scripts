@@ -1,0 +1,19 @@
+services:
+  server:
+    image: live-streamer-server
+    network_mode: host
+    volumes:
+      - /opt/ArenaSDK:/opt/ArenaSDK:ro
+      - hls:/tmp/hls
+    restart: unless-stopped
+
+  web:
+    image: live-streamer-web
+    ports:
+      - "3000:3000"
+    volumes:
+      - hls:/tmp/hls:ro
+    restart: unless-stopped
+
+volumes:
+  hls:
