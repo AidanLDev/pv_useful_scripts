@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git ls-tree *)",
+      "Bash(git fetch *)",
+      "Bash(git checkout *)",
+      "Bash(git mktree *)",
+      "Bash(GIT_AUTHOR_NAME=Aidan GIT_AUTHOR_EMAIL=dev@aidanlowson.com GIT_COMMITTER_NAME=Aidan GIT_COMMITTER_EMAIL=dev@aidanlowson.com git commit-tree 8b623ad5d6d8da2ba320e563a0110d8c650670fa -p 8368e9e -m 'Remove Zone.Identifier file that breaks Windows git checkout')",
+      "Bash(git push *)",
+      "Bash(git pull *)"
+    ]
+  }
+}
