@@ -31,6 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gstreamer1.0-plugins-ugly \
     gstreamer1.0-libav \
     libsqlite3-0 \
+    sqlite3 \
     python3 \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*

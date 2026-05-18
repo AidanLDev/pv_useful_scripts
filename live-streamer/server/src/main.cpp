@@ -42,8 +42,10 @@ int main(int argc, char *argv[])
             dummyFile = argv[++i];
             forceDummy = true;
         }
-        else if (arg == "--dummy")
+        else if (arg == "--dummy") {
             forceDummy = true;
+            dummyFile = "";
+        }
     }
 
     filesystem::create_directories(outputDir);

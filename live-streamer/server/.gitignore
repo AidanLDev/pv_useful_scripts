@@ -26,3 +26,4 @@ build
 *.eggs
 
 .vscode/
+hls_out
