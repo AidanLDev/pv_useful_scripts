@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1
-FROM ubuntu:24.04 AS builder
+ARG BASE_IMAGE=public.ecr.aws/x4v4q0a3/prod_camera-stream-base:1.1.0
+
+FROM ${BASE_IMAGE} AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
@@ -14,13 +16,12 @@ WORKDIR /build
 COPY src/ ./src/
 COPY CMakeLists.txt .
 
-RUN --mount=type=bind,from=arena-sdk,target=/opt/ArenaSDK \
-    mkdir build && cd build && \
+RUN mkdir build && cd build && \
     cmake .. -DARENA_SDK_ROOT=/opt/ArenaSDK && \
     make -j$(nproc) && \
     cp lucid_stream /lucid_stream
 
-FROM ubuntu:24.04 AS runner
+FROM ${BASE_IMAGE} AS runner
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgstreamer1.0-0 \
