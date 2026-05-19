@@ -29,3 +29,17 @@ Then access it at
 
 `docker start <container-name>`
 `docker stop <container-name>`
+
+# Building and running both the web & server
+
+## Web
+
+`docker build -t live-streamer-web ./web`
+
+## server
+
+`docker build -t live-streamer-server ./server`
+
+# Run the container in dummy mode (using the local file rather than IP camera)
+
+`docker-compose up`
