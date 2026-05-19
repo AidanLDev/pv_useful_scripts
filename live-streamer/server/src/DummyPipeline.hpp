@@ -8,7 +8,6 @@
 
 class DummyPipeline {
 public:
-    // sourceFile: path to a video file, or empty to use a test pattern
     DummyPipeline(const std::string& sourceFile, const std::string& outputDir,
                   SegmentDatabase& db);
     ~DummyPipeline();

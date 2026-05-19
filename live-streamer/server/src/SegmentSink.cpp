@@ -2,6 +2,7 @@
 #include <chrono>
 #include <stdexcept>
 #include <iostream>
+#include <cmath>
 #include <gst/gst.h>
 
 static double nowUnix()
@@ -103,6 +104,39 @@ void SegmentSink::closeSegment(double wallNow)
     r.duration       = wallNow - segStart_;
     db_.insert(r);
 
+    // Update the live HLS playlist. Segments are stored as .h264 but referenced
+    // as .ts so the web API can remux them on-the-fly without storing .ts files.
+    std::string tsName = curName_;
+    auto ext = tsName.rfind(".h264");
+    if (ext != std::string::npos) tsName.replace(ext, 5, ".ts");
+    playlist_.push_back({tsName, r.duration});
+    if (static_cast<int>(playlist_.size()) > PLAYLIST_WINDOW)
+        playlist_.pop_front();
+    writePlaylist();
+
     std::cout << "Segment closed:  " << r.filename
               << "  (" << r.duration << "s)\n";
+}
+
+void SegmentSink::writePlaylist()
+{
+    std::string path = outputDir_ + "/stream.m3u8";
+    FILE* f = std::fopen(path.c_str(), "w");
+    if (!f) return;
+
+    double maxDur = segDuration_;
+    for (auto& [name, dur] : playlist_)
+        maxDur = std::max(maxDur, dur);
+
+    int baseSeq = seqNum_ - static_cast<int>(playlist_.size());
+
+    std::fprintf(f, "#EXTM3U\n");
+    std::fprintf(f, "#EXT-X-VERSION:3\n");
+    std::fprintf(f, "#EXT-X-TARGETDURATION:%d\n", static_cast<int>(std::ceil(maxDur)));
+    std::fprintf(f, "#EXT-X-MEDIA-SEQUENCE:%d\n", baseSeq);
+    for (auto& [name, dur] : playlist_)
+        std::fprintf(f, "#EXTINF:%.3f,\n%s\n", dur, name.c_str());
+
+    std::fflush(f);
+    std::fclose(f);
 }

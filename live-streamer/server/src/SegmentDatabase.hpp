@@ -17,7 +17,7 @@ public:
     explicit SegmentDatabase(const std::string& dbPath);
     ~SegmentDatabase();
 
-    void             insert(const SegmentRecord& r);
+    void                  insert(const SegmentRecord& r);
     std::set<std::string> allFilenames();
 
 private:

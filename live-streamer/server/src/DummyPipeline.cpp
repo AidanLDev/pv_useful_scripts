@@ -16,8 +16,6 @@ DummyPipeline::DummyPipeline(const std::string& sourceFile,
         src = "filesrc location=" + sourceFile + " ! decodebin";
     }
 
-    // key-int-max=60 and config-interval=-1 mirror the live Pipeline settings
-    // so each .h264 segment is self-decodable.
     std::string desc = src +
         " ! videoconvert"
         " ! x264enc tune=zerolatency key-int-max=60"

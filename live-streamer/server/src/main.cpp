@@ -21,12 +21,12 @@ int main(int argc, char *argv[])
 
     gst_init(&argc, &argv);
 
-    string  cameraIp     = "";
-    string  dummyFile    = "";
-    string  outputDir    = "/tmp/hls";
-    string  dbPath       = "./segments.db";
+    string  cameraIp      = "";
+    string  dummyFile     = "";
+    string  outputDir     = "/tmp/hls";
+    string  dbPath        = "./segments.db";
     int64_t switchoverKey = 0;
-    bool    forceDummy   = false;
+    bool    forceDummy    = false;
 
     for (int i = 1; i < argc; ++i)
     {

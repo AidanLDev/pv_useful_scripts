@@ -2,16 +2,11 @@
 #include <gst/app/gstappsrc.h>
 #include <stdexcept>
 #include <sstream>
-#include <cstdlib>
 #include <cstring>
 
 Pipeline::Pipeline(int width, int height, const std::string& bayerFormat,
                    const std::string& outputDir, SegmentDatabase& db)
 {
-    // key-int-max=60 forces an IDR every 2 s at 30 fps, aligning cleanly with
-    // the 2-second segment boundary used by SegmentSink.
-    // h264parse config-interval=-1 prepends in-band SPS/PPS before every IDR
-    // so each .h264 file is self-decodable without the preceding segments.
     std::ostringstream desc;
     desc << "appsrc name=src is-live=true format=time "
          << "caps=video/x-bayer,format=" << bayerFormat
@@ -43,9 +38,7 @@ Pipeline::~Pipeline()
         gst_element_set_state(pipeline_, GST_STATE_NULL);
         gst_object_unref(pipeline_);
     }
-    // SegmentSink flush is triggered by EOS in stop(); destructor is the
-    // safety net for abnormal teardown.
-    if (sink_) sink_->flush();
+    if (sink_)    sink_->flush();
     if (appsrc_)  gst_object_unref(appsrc_);
     if (appsink_) gst_object_unref(appsink_);
 }
@@ -57,8 +50,6 @@ void Pipeline::start()
 
 void Pipeline::stop()
 {
-    // Send EOS so the appsink receives it, triggering SegmentSink::onEos to
-    // flush the in-progress segment before we tear the pipeline down.
     g_signal_emit_by_name(appsrc_, "end-of-stream", nullptr);
 
     GstBus* bus = gst_element_get_bus(pipeline_);
@@ -67,7 +58,7 @@ void Pipeline::stop()
     gst_object_unref(bus);
 
     gst_element_set_state(pipeline_, GST_STATE_NULL);
-    if (sink_) sink_->flush();  // no-op if onEos already flushed
+    if (sink_) sink_->flush();
 }
 
 void Pipeline::pushFrame(const uint8_t* data, size_t size)
