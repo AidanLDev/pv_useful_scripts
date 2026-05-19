@@ -37,10 +37,17 @@ Camera::~Camera()
 
 void Camera::startStream()
 {
-    GenApi::INodeMap* nm = device_->GetNodeMap();
-    GenApi::CEnumerationPtr(nm->GetNode("AcquisitionMode"))->FromString("Continuous");
-    GenApi::CEnumerationPtr(nm->GetNode("PixelFormat"))->FromString(pixelFormat_.c_str());
-    GenApi::CIntegerPtr(nm->GetNode("GevSCPSPacketSize"))->SetValue(1440);
+    GenApi::INodeMap* nm       = device_->GetNodeMap();
+    GenApi::INodeMap* tlStream = device_->GetTLStreamNodeMap();
+
+    Arena::SetNodeValue<GenICam::gcstring>(nm, "AcquisitionMode", "Continuous");
+    Arena::SetNodeValue<GenICam::gcstring>(nm, "PixelFormat", pixelFormat_.c_str());
+    Arena::SetNodeValue<int64_t>(nm, "GevSCPD", 80);
+
+    Arena::SetNodeValue<GenICam::gcstring>(tlStream, "StreamBufferHandlingMode", "NewestOnly");
+    Arena::SetNodeValue<bool>(tlStream, "StreamAutoNegotiatePacketSize", true);
+    Arena::SetNodeValue<bool>(tlStream, "StreamPacketResendEnable", true);
+
     device_->StartStream();
 }
 

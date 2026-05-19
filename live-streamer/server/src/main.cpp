@@ -82,9 +82,13 @@ int main(int argc, char *argv[])
         {
             cerr << "Camera unavailable (" << ex.what() << ") — falling back to dummy pipeline\n";
         }
+        catch (const GenICam::GenericException& ex)
+        {
+            cerr << "Camera unavailable (" << ex.GetDescription() << ") — falling back to dummy pipeline\n";
+        }
         catch (...)
         {
-            cerr << "Camera unavailable (GenICam exception) — falling back to dummy pipeline\n";
+            cerr << "Camera unavailable (unknown exception) — falling back to dummy pipeline\n";
         }
     }
 
