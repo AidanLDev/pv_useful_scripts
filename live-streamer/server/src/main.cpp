@@ -22,8 +22,7 @@ int main(int argc, char *argv[])
     gst_init(&argc, &argv);
 
     string cameraIp = "";
-    filesystem::path exeDir = filesystem::canonical(argv[0]).parent_path();
-    string dummyFile = (exeDir / "../../../multi_part_s3_upload/2026-04-11T04_40_00_TILL_2026-04-11T04_44_00.mkv").string();
+    string dummyFile = "";
     string outputDir = "/tmp/hls";
     string dbPath    = "./segments.db";
     bool   forceDummy = false;
@@ -59,7 +58,7 @@ int main(int argc, char *argv[])
             Camera camera(cameraIp);
             cout << "Camera: " << camera.ip() << " "
                  << camera.width() << "x" << camera.height()
-                 << " " << camera.pixelFormat() << "\n";
+                 << " " << camera.pixelFormat() << endl;
 
             Pipeline pipeline(camera.width(), camera.height(),
                               camera.gstBayerFormat(), outputDir, db);
