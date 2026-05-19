@@ -1,0 +1,6 @@
+services:
+  server:
+    volumes:
+      - C:/Users/Aidan/Repos/work/pv_useful_scripts/multi_part_s3_upload/2026-04-11T04_40_00_TILL_2026-04-11T04_44_00.mkv:/app/dummy.mkv:ro
+    command: ["./webrtc_stream", "--port", "8080", "--file", "/app/dummy.mkv"]
+    restart: "no"
