@@ -75,7 +75,7 @@ void SegmentSink::handleSample(GstSample* sample)
 void SegmentSink::openSegment(double wallNow)
 {
     char name[32];
-    std::snprintf(name, sizeof(name), "seg%05d.h264", seqNum_);
+    std::snprintf(name, sizeof(name), "seg%05d.ts", seqNum_);
     curName_ = name;
     curPath_ = outputDir_ + "/" + name;
 
@@ -104,12 +104,7 @@ void SegmentSink::closeSegment(double wallNow)
     r.duration       = wallNow - segStart_;
     db_.insert(r);
 
-    // Update the live HLS playlist. Segments are stored as .h264 but referenced
-    // as .ts so the web API can remux them on-the-fly without storing .ts files.
-    std::string tsName = curName_;
-    auto ext = tsName.rfind(".h264");
-    if (ext != std::string::npos) tsName.replace(ext, 5, ".ts");
-    playlist_.push_back({tsName, r.duration});
+    playlist_.push_back({curName_, r.duration});
     if (static_cast<int>(playlist_.size()) > PLAYLIST_WINDOW)
         playlist_.pop_front();
     writePlaylist();
