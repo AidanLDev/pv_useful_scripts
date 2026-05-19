@@ -21,17 +21,20 @@ int main(int argc, char *argv[])
 
     gst_init(&argc, &argv);
 
-    string cameraIp = "";
-    string dummyFile = "";
-    string outputDir = "/tmp/hls";
-    string dbPath    = "./segments.db";
-    bool   forceDummy = false;
+    string  cameraIp     = "";
+    string  dummyFile    = "";
+    string  outputDir    = "/tmp/hls";
+    string  dbPath       = "./segments.db";
+    int64_t switchoverKey = 0;
+    bool    forceDummy   = false;
 
     for (int i = 1; i < argc; ++i)
     {
         string arg = argv[i];
         if (arg == "--ip" && i + 1 < argc)
             cameraIp = argv[++i];
+        else if (arg == "--key" && i + 1 < argc)
+            switchoverKey = stoll(argv[++i]);
         else if (arg == "--out" && i + 1 < argc)
             outputDir = argv[++i];
         else if (arg == "--db" && i + 1 < argc)
@@ -55,7 +58,7 @@ int main(int argc, char *argv[])
     {
         try
         {
-            Camera camera(cameraIp);
+            Camera camera(cameraIp, switchoverKey);
             cout << "Camera: " << camera.ip() << " "
                  << camera.width() << "x" << camera.height()
                  << " " << camera.pixelFormat() << endl;

@@ -1,7 +1,10 @@
 #include "Camera.hpp"
 #include <stdexcept>
+#include <thread>
+#include <chrono>
 
-Camera::Camera(const std::string& ip)
+Camera::Camera(const std::string& ip, int64_t switchoverKey)
+    : switchoverKey_(switchoverKey)
 {
     system_ = Arena::OpenSystem();
     if (!ip.empty())
@@ -41,22 +44,38 @@ void Camera::claimAccess()
 {
     GenApi::INodeMap* tlDev = device_->GetTLDeviceNodeMap();
 
-    // GigE Vision application switchover — takes control from any other app
-    // Key must match the value the other application used (default is 0)
-    try {
-        Arena::SetNodeValue<int64_t>(tlDev, "CcpSwitchoverKey", 0);
-    } catch (...) {}
+    // GigE Vision CCP heartbeat locks can persist several seconds after the
+    // previous app exits. Retry for up to 15 seconds before giving up.
+    for (int attempt = 0; attempt < 15; attempt++) {
+        std::string status = Arena::GetNodeValue<GenICam::gcstring>(
+            tlDev, "DeviceAccessStatus").c_str();
 
-    for (int i = 0; i < 3; i++) {
-        if (Arena::GetNodeValue<GenICam::gcstring>(tlDev, "DeviceAccessStatus") == "ReadWrite")
+        if (status == "ReadWrite")
             return;
+
+        std::cerr << "Camera access status: " << status
+                  << " (attempt " << attempt + 1 << "/15, key=" << switchoverKey_ << ")\n";
+
+        try {
+            Arena::SetNodeValue<int64_t>(tlDev, "CcpSwitchoverKey", switchoverKey_);
+        } catch (const GenICam::GenericException& ex) {
+            std::cerr << "  CcpSwitchoverKey failed: " << ex.GetDescription() << "\n";
+        }
+
         try {
             Arena::SetNodeValue<GenICam::gcstring>(tlDev, "DeviceAccessStatus", "ReadWrite");
-        } catch (...) {}
+        } catch (const GenICam::GenericException& ex) {
+            std::cerr << "  DeviceAccessStatus set failed: " << ex.GetDescription() << "\n";
+        }
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
-    if (Arena::GetNodeValue<GenICam::gcstring>(tlDev, "DeviceAccessStatus") != "ReadWrite")
-        throw std::runtime_error("Cannot claim ReadWrite access to camera at " + ip_);
+    std::string finalStatus = Arena::GetNodeValue<GenICam::gcstring>(
+        tlDev, "DeviceAccessStatus").c_str();
+    throw std::runtime_error(
+        "Cannot claim ReadWrite access to camera at " + ip_ +
+        " (status: " + finalStatus + "). Stop all other applications using the camera.");
 }
 
 void Camera::startStream()

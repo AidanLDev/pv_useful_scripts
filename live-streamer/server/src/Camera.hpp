@@ -4,7 +4,7 @@
 
 class Camera {
 public:
-    explicit Camera(const std::string& ip);
+    explicit Camera(const std::string& ip, int64_t switchoverKey = 0);
     ~Camera();
 
     // Non-copyable — only one owner of the device
@@ -29,6 +29,7 @@ private:
     Arena::IDevice* device_  = nullptr;
     Arena::IImage*  current_ = nullptr;
 
+    int64_t     switchoverKey_ = 0;
     int         width_  = 0;
     int         height_ = 0;
     std::string ip_;
