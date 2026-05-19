@@ -35,5 +35,6 @@ private:
     std::string pixelFormat_;
     std::string gstBayerFormat_;
 
+    void claimAccess();
     static std::string toGstBayerFormat(const std::string& genicam);
 };

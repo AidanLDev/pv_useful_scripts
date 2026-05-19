@@ -17,6 +17,8 @@ Camera::Camera(const std::string& ip)
     Arena::DeviceInfo& info = devices[0];
     ip_ = info.IpAddressStr().c_str();
 
+    claimAccess();
+
     GenApi::INodeMap* nm = device_->GetNodeMap();
     width_  = static_cast<int>(GenApi::CIntegerPtr(nm->GetNode("Width"))->GetValue());
     height_ = static_cast<int>(GenApi::CIntegerPtr(nm->GetNode("Height"))->GetValue());
@@ -33,6 +35,28 @@ Camera::~Camera()
     }
     if (system_)
         Arena::CloseSystem(system_);
+}
+
+void Camera::claimAccess()
+{
+    GenApi::INodeMap* tlDev = device_->GetTLDeviceNodeMap();
+
+    // GigE Vision application switchover — takes control from any other app
+    // Key must match the value the other application used (default is 0)
+    try {
+        Arena::SetNodeValue<int64_t>(tlDev, "CcpSwitchoverKey", 0);
+    } catch (...) {}
+
+    for (int i = 0; i < 3; i++) {
+        if (Arena::GetNodeValue<GenICam::gcstring>(tlDev, "DeviceAccessStatus") == "ReadWrite")
+            return;
+        try {
+            Arena::SetNodeValue<GenICam::gcstring>(tlDev, "DeviceAccessStatus", "ReadWrite");
+        } catch (...) {}
+    }
+
+    if (Arena::GetNodeValue<GenICam::gcstring>(tlDev, "DeviceAccessStatus") != "ReadWrite")
+        throw std::runtime_error("Cannot claim ReadWrite access to camera at " + ip_);
 }
 
 void Camera::startStream()
