@@ -4,14 +4,18 @@
 Camera::Camera(const std::string& ip)
 {
     system_ = Arena::OpenSystem();
-    system_->AddUnicastDiscoveryDevice(ip.c_str());
+    if (!ip.empty())
+        system_->AddUnicastDiscoveryDevice(ip.c_str());
     system_->UpdateDevices(1000);
 
     auto devices = system_->GetDevices();
     if (devices.empty())
-        throw std::runtime_error("No cameras found at " + ip);
+        throw std::runtime_error(ip.empty() ? "No cameras found on network" : "No cameras found at " + ip);
 
     device_ = system_->CreateDevice(devices[0]);
+
+    Arena::DeviceInfo& info = devices[0];
+    ip_ = info.IpAddressStr().c_str();
 
     GenApi::INodeMap* nm = device_->GetNodeMap();
     width_  = static_cast<int>(GenApi::CIntegerPtr(nm->GetNode("Width"))->GetValue());

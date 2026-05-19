@@ -13,6 +13,7 @@ public:
 
     int width() const { return width_; }
     int height() const { return height_; }
+    const std::string& ip() const { return ip_; }
     const std::string& pixelFormat() const { return pixelFormat_; }
     const std::string& gstBayerFormat() const { return gstBayerFormat_; }
 
@@ -30,6 +31,7 @@ private:
 
     int         width_  = 0;
     int         height_ = 0;
+    std::string ip_;
     std::string pixelFormat_;
     std::string gstBayerFormat_;
 
