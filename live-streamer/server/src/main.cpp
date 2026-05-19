@@ -82,6 +82,10 @@ int main(int argc, char *argv[])
         {
             cerr << "Camera unavailable (" << ex.what() << ") — falling back to dummy pipeline\n";
         }
+        catch (...)
+        {
+            cerr << "Camera unavailable (GenICam exception) — falling back to dummy pipeline\n";
+        }
     }
 
     try
