@@ -1,19 +1,29 @@
 services:
   server:
+    build:
+      context: ./server
     image: live-streamer-server
     network_mode: host
     volumes:
       - /opt/ArenaSDK:/opt/ArenaSDK:ro
       - hls:/tmp/hls
+      - db:/tmp/db
+    command: ["./lucid_stream", "--db", "/tmp/db/segments.db"]
     restart: unless-stopped
 
   web:
+    build:
+      context: ./web
     image: live-streamer-web
     ports:
       - "3000:3000"
     volumes:
       - hls:/tmp/hls:ro
+      - db:/tmp/db:ro
+    environment:
+      - DB_PATH=/tmp/db/segments.db
     restart: unless-stopped
 
 volumes:
   hls:
+  db:
