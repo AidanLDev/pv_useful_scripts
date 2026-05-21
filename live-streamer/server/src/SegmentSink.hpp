@@ -8,7 +8,7 @@
 class SegmentSink {
 public:
     SegmentSink(GstElement* appsink, const std::string& outputDir,
-                SegmentDatabase& db, double segDuration = 2.0);
+                SegmentDatabase& db, double segDuration = 4.0);
     ~SegmentSink();
 
     SegmentSink(const SegmentSink&) = delete;

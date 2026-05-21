@@ -167,22 +167,25 @@ export default function Home() {
       )}
 
       {/* Timeline */}
-      <div className="px-4 py-3 bg-gray-900 border-t border-gray-700">
-        {ranges.length === 0 ? (
-          <p className="text-xs text-gray-500 text-center py-2">
-            No recordings available
-          </p>
-        ) : (
-          <Timeline
-            earliest={timelineEarliest}
-            latest={timelineLatest}
-            ranges={ranges}
-            currentTime={currentTime}
-            onSeek={handleSeek}
-            label="Camera 1"
-          />
-        )}
-      </div>
+
+      {mode === "playback" && (
+        <div className="px-4 py-3 bg-gray-900 border-t border-gray-700">
+          {ranges.length === 0 ? (
+            <p className="text-xs text-gray-500 text-center py-2">
+              No recordings available
+            </p>
+          ) : (
+            <Timeline
+              earliest={timelineEarliest}
+              latest={timelineLatest}
+              ranges={ranges}
+              currentTime={currentTime}
+              onSeek={handleSeek}
+              label="Camera 1"
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
