@@ -50,18 +50,24 @@ export default function Timeline({
   const timeToPercent = useCallback(
     (t: Date) => {
       if (totalMs <= 0) return 0;
-      return Math.max(0, Math.min(100, ((t.getTime() - earliest.getTime()) / totalMs) * 100));
+      return Math.max(
+        0,
+        Math.min(100, ((t.getTime() - earliest.getTime()) / totalMs) * 100),
+      );
     },
-    [earliest, totalMs]
+    [earliest, totalMs],
   );
 
   const xToTime = useCallback(
     (clientX: number): Date => {
       const rect = barRef.current!.getBoundingClientRect();
-      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const ratio = Math.max(
+        0,
+        Math.min(1, (clientX - rect.left) / rect.width),
+      );
       return new Date(earliest.getTime() + ratio * totalMs);
     },
-    [earliest, totalMs]
+    [earliest, totalMs],
   );
 
   const handleClick = useCallback(
@@ -69,7 +75,7 @@ export default function Timeline({
       if (!barRef.current) return;
       onSeek(xToTime(e.clientX));
     },
-    [xToTime, onSeek]
+    [xToTime, onSeek],
   );
 
   const handleMouseMove = useCallback(
@@ -80,7 +86,7 @@ export default function Timeline({
       setHoverTime(xToTime(e.clientX));
       if (isDragging) onSeek(xToTime(e.clientX));
     },
-    [xToTime, isDragging, onSeek]
+    [xToTime, isDragging, onSeek],
   );
 
   // Stop dragging if mouse is released anywhere
@@ -123,7 +129,9 @@ export default function Timeline({
 
       {/* Timeline bar */}
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-xs text-gray-400 w-16 shrink-0 truncate">{label}</span>
+        <span className="text-xs text-gray-400 w-16 shrink-0 truncate">
+          {label}
+        </span>
         <div
           ref={barRef}
           className="relative flex-1 h-4 rounded cursor-pointer"

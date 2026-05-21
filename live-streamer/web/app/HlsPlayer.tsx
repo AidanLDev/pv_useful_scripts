@@ -48,7 +48,7 @@ export default function HlsPlayer({
     const handleTimeUpdate = () => {
       if (!isLive && onTimeUpdateRef.current && vodStartTimeRef.current) {
         const wallClock = new Date(
-          vodStartTimeRef.current.getTime() + video.currentTime * 1000
+          vodStartTimeRef.current.getTime() + video.currentTime * 1000,
         );
         onTimeUpdateRef.current(wallClock);
       }
@@ -67,7 +67,7 @@ export default function HlsPlayer({
       ref={videoRef}
       controls
       muted
-      className="w-full rounded-lg bg-black"
+      className="absolute inset-0 w-full h-full object-contain bg-black"
     />
   );
 }

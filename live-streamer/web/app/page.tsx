@@ -58,7 +58,10 @@ export default function Home() {
   useEffect(() => {
     if (mode === "live") {
       setCurrentTime(new Date());
-      liveNeedleRef.current = setInterval(() => setCurrentTime(new Date()), 1000);
+      liveNeedleRef.current = setInterval(
+        () => setCurrentTime(new Date()),
+        1000,
+      );
     } else {
       if (liveNeedleRef.current) clearInterval(liveNeedleRef.current);
     }
@@ -67,15 +70,12 @@ export default function Home() {
     };
   }, [mode]);
 
-  const handleSeek = useCallback(
-    (t: Date) => {
-      setPlaybackStart(t);
-      setCurrentTime(t);
-      setMode("playback");
-      setVodKey((k) => k + 1);
-    },
-    []
-  );
+  const handleSeek = useCallback((t: Date) => {
+    setPlaybackStart(t);
+    setCurrentTime(t);
+    setMode("playback");
+    setVodKey((k) => k + 1);
+  }, []);
 
   const handleStep = useCallback(
     (direction: -1 | 1) => {
@@ -83,7 +83,7 @@ export default function Home() {
       const next = new Date(base.getTime() + direction * SEGMENT_STEP_MS);
       handleSeek(next);
     },
-    [playbackStart, currentTime, handleSeek]
+    [playbackStart, currentTime, handleSeek],
   );
 
   const handleSkipToStart = useCallback(() => {
@@ -103,7 +103,7 @@ export default function Home() {
   const timelineLatest = latest ?? new Date();
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-950 text-white">
+    <div className="flex flex-col h-screen bg-gray-950 text-white">
       {/* Header bar */}
       <div className="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-700">
         <span className="text-sm font-medium text-gray-200">Camera 1</span>
@@ -132,7 +132,7 @@ export default function Home() {
       </div>
 
       {/* Video area */}
-      <div className="flex-1 bg-black">
+      <div className="flex-1 min-h-0 bg-black relative">
         {mode === "live" ? (
           <HlsPlayer src="/api/hls/stream.m3u8" isLive={true} />
         ) : vodSrc ? (

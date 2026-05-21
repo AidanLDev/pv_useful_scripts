@@ -12,7 +12,7 @@ Pipeline::Pipeline(int width, int height, const std::string& bayerFormat,
          << "caps=video/x-bayer,format=" << bayerFormat
          << ",width=" << width << ",height=" << height << ",framerate=30/1 "
          << "! bayer2rgb ! videoconvert "
-         << "! x264enc tune=zerolatency key-int-max=60 "
+         << "! x264enc tune=zerolatency key-int-max=60 option-string=\"crf=23:vbv-maxrate=4000:vbv-bufsize=8000\" "
          << "! h264parse config-interval=-1 "
          << "! mpegtsmux "
          << "! appsink name=sink sync=false";
